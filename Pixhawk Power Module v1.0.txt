@@ -1,0 +1,48 @@
+float voltage_value;
+float current_value;
+uint16_t raw_value_v;
+uint16_t raw_value_c;
+int veri;
+int ADC_MAX_VALUE= 4095;
+int Voltage_Divider = 10;
+float Ref_Voltage = 3.3;
+float Current_sensivity = 0.017; // mV/A
+float ADC_read_delay = 0.5 ;// Saniye
+float Remaining_ratio;
+float Battery_used;
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+void Read_Voltage(){
+	ADC_ChannelConfTypeDef sConfig = {0};
+	sConfig.Channel = ADC_CHANNEL_3;
+	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+	HAL_ADC_Start(&hadc1);
+
+	if( HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK ){
+		raw_value_v = HAL_ADC_GetValue(&hadc1);
+		veri++;
+	}
+	voltage_value = (raw_value_v * (Ref_Voltage) * Voltage_Divider) / ADC_MAX_VALUE;
+	HAL_ADC_Stop(&hadc1);
+}
+void Read_Current(){
+	ADC_ChannelConfTypeDef sConfig = {0};
+	sConfig.Channel = ADC_CHANNEL_4;
+	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+	HAL_ADC_Start(&hadc1);
+
+	if( HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK ){
+		raw_value_c = HAL_ADC_GetValue(&hadc1);
+		veri++;
+	}
+	float temp_volt = (raw_value_c * (Ref_Voltage) * Voltage_Divider) / ADC_MAX_VALUE;
+	current_value = (temp_volt / Current_sensivity)/1000 ;
+}
+void Remain_Ratio(){
+	Battery_used = Battery_used + current_value*1000*ADC_read_delay/60;
+	Remaining_ratio = Battery_used/13000;
+}
