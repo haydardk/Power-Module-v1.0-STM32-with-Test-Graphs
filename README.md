@@ -3,7 +3,11 @@ We achieved almost 2500 data to understand the characteristic of the Li-Po Batte
 We logged the data :
 [07_07 Veri Seti.xlsx](https://github.com/user-attachments/files/16147931/07_07.Veri.Seti.xlsx)
 We convert to Percentage Value to process precisely:
+![WhatsApp Image 2024-07-09 at 20 18 05](https://github.com/haydardk/Power-Module-v1.0-STM32-with-Test-Graphs/assets/134811972/54025178-2e7f-4e06-a6e9-b3b8139d5c6b)
+
 [Uploading Voltaj_Fullness.c…]()
+
+
 #include <stdio.h>
 #include <math.h>
 
