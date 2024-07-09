@@ -19,8 +19,23 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+#include "string.h"
+#include "stdio.h"
+#include "Voltage_Measurement.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+float voltage_value;
+uint16_t raw_value_v;
+int veri;
+int ADC_MAX_VALUE= 4095;
+int Voltage_Divider = 10;
+float Ref_Voltage = 3.07; // STM32F411VET Kartı için Geçerli !
+float ADC_read_delay = 0.5 ;// Saniye
+float battery_percentage;
+float voltage_buffer[20];
+float avg_voltage;
 
 /* USER CODE END Includes */
 
@@ -42,6 +57,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+UART_HandleTypeDef huart2;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -49,58 +66,16 @@ ADC_HandleTypeDef hadc1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-
-float voltage_value;
-float current_value;
-uint16_t raw_value_v;
-uint16_t raw_value_c;
-int veri;
-int ADC_MAX_VALUE= 4095;
-int Voltage_Divider = 10;
-float Ref_Voltage = 3.3;
-float Current_sensivity = 0.017; // mV/A
-float ADC_read_delay = 0.5 ;// Saniye
-float Remaining_ratio;
-float Battery_used;
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void Read_Voltage(){
-	ADC_ChannelConfTypeDef sConfig = {0};
-	sConfig.Channel = ADC_CHANNEL_3;
-	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-	HAL_ADC_Start(&hadc1);
-
-	if( HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK ){
-		raw_value_v = HAL_ADC_GetValue(&hadc1);
-		veri++;
-	}
-	voltage_value =  0.5 + (raw_value_v *(Ref_Voltage) * Voltage_Divider) / (ADC_MAX_VALUE);
-	HAL_ADC_Stop(&hadc1);
-}
-void Read_Current(){
-	ADC_ChannelConfTypeDef sConfig = {0};
-	sConfig.Channel = ADC_CHANNEL_4;
-	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-	HAL_ADC_Start(&hadc1);
-
-	if( HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK ){
-		raw_value_c = HAL_ADC_GetValue(&hadc1);
-		veri++;
-	}
-	float temp_volt = (raw_value_c * (Ref_Voltage) * Voltage_Divider) / ADC_MAX_VALUE;
-	current_value = (temp_volt / Current_sensivity)/1000 ;
-}
-void Remain_Ratio(void){
-	Battery_used = Battery_used + current_value*ADC_read_delay;
-	Remaining_ratio = 1 - Battery_used/(13*3600);
-}
-
+char BatteryData[20];
 
 /* USER CODE END 0 */
 
@@ -132,6 +107,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART2_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
@@ -142,11 +118,10 @@ int main(void)
   while (1)
   {
 	  Read_Voltage();
-	  HAL_Delay(250);
-	  Read_Current();
-	  HAL_Delay(250);
-	  Remain_Ratio();
-
+	  HAL_Delay(9000);
+	  sprintf(BatteryData ,"%.3f\n",voltage_value);
+	  HAL_UART_Transmit(&huart2, &BatteryData, sizeof(BatteryData), HAL_MAX_DELAY);
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -218,7 +193,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -233,7 +208,7 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Channel = ADC_CHANNEL_4;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -243,6 +218,39 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 9600;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
 
 }
 
